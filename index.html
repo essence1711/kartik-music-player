@@ -1,5 +1,26 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b0c10"><link rel="manifest" href="manifest.webmanifest"><title>Kartik Music</title><link rel="stylesheet" href="styles.css"></head><body><div id="wallpaper"></div><div class="app">
 <aside class="sidebar"><div class="brand"><div class="logo">K</div><div><b>Kartik Music</b><small>Personal player</small></div></div><nav><button class="nav active" data-view="home"><span class="navicon">HOME</span><span>Home</span></button><button class="nav" data-view="songs"><span class="navicon">SONGS</span><span>All Songs</span></button><button class="nav" data-view="playlists"><span class="navicon">LIST</span><span>Playlists</span></button><button class="nav" data-view="settings"><span class="navicon">VIEW</span><span>Appearance</span></button></nav><div class="side-bottom"><button id="importSide" class="primary">+ Import music</button><p>Local only · No ads · Offline</p></div></aside>
-<main><header><div class="mobile-brand"><div class="logo">K</div><b>Kartik Music</b></div><div class="search-wrap"><span>SEARCH</span><input id="search" placeholder="Search your music..."></div><button id="importTop" class="import">+ Import</button></header><section id="content"></section></main>
+<main><header><div class="mobile-brand"><div class="logo">K</div><b>Kartik Music</b></div><div class="search-wrap"><span>SEARCH</span><input id="search" placeholder="Search your music..."></div><button id="accountButton" class="import account-button" type="button">Sign in</button><button id="importTop" class="import">+ Import</button></header><section id="content"></section></main>
 <footer class="player"><div class="now"><div id="cover" class="cover">♪</div><div class="tracktext"><b id="nowTitle">Nothing playing</b><span id="nowArtist">Import music to begin</span></div></div><div class="controls"><div class="buttons"><button id="prev" title="Previous">Previous</button><button id="back" title="Back 10 seconds">-10</button><button id="play" class="play" title="Play/Pause">Play</button><button id="forward" title="Forward 10 seconds">+10</button><button id="next" title="Next">Next</button><button id="repeat" title="Repeat">Repeat</button><button id="shuffle" title="Shuffle">Shuffle</button></div><div class="timeline"><span id="cur">0:00</span><input id="seek" type="range" min="0" max="100" value="0"><span id="dur">0:00</span></div></div><div class="volume"><span>Volume</span><input id="vol" type="range" min="0" max="1" step="0.01" value="0.8"></div></footer>
-<input id="fileInput" type="file" accept="audio/*,.mp3" multiple hidden><input id="wallpaperInput" type="file" accept="image/*" hidden><audio id="audio"></audio><div id="toast"></div></div><script src="app.js"></script></body></html>
+<input id="fileInput" type="file" accept="audio/*,.mp3" multiple hidden><input id="wallpaperInput" type="file" accept="image/*" hidden><audio id="audio"></audio><div id="toast"></div>
+<div id="authModal" class="auth-modal" aria-hidden="true">
+  <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <button id="authClose" class="auth-close" type="button" aria-label="Close">×</button>
+    <span class="eyebrow">KARTIK MUSIC ACCOUNT</span>
+    <h2 id="authTitle">Sign in</h2>
+    <p id="authDescription">Sign in to prepare your account for cloud-synced playlists.</p>
+    <div id="authNotice" class="auth-notice" role="status"></div>
+    <form id="authForm">
+      <label for="authEmail">Email</label>
+      <input id="authEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+      <label for="authPassword">Password</label>
+      <input id="authPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="At least 6 characters">
+      <button id="authSubmit" class="hero-btn auth-submit" type="submit">Sign in</button>
+    </form>
+    <button id="authForgot" class="auth-link" type="button">Forgot password?</button>
+    <div class="auth-switch-row"><span id="authSwitchText">New here?</span><button id="authSwitch" class="auth-link" type="button">Create account</button></div>
+    <button id="authLogout" class="ghost auth-logout" type="button" hidden>Sign out</button>
+    <p class="auth-footnote">Cloud audio uploads are not enabled yet. Your existing local music stays on this device.</p>
+  </section>
+</div>
+</div><script src="app.js"></script><script type="module" src="firebase-auth.js"></script></body></html>
