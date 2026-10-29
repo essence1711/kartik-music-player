@@ -7,11 +7,14 @@ import {
   signOut,
   sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, getDocs, query, where, setDoc, addDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
 // Public web-app configuration from Firebase Project Settings > Your apps.
 // Do not put service-account credentials or private server keys in this file.
 const firebaseConfig = {
-  apiKey: "AIzaSyCUQafqXUZn4uHohqKStgFDGlFsAdTHy5U",
+  apiKey: "AIzaSyCUQafqXUZn4uH0nqKStgFDGLFsAdTHY5U",
   authDomain: "kartik-music-player.firebaseapp.com",
   projectId: "kartik-music-player",
   storageBucket: "kartik-music-player.firebasestorage.app",
@@ -21,6 +24,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const firestore = getFirestore(app);
 const $ = (selector) => document.querySelector(selector);
 const modal = $("#authModal");
 const form = $("#authForm");
@@ -47,7 +51,7 @@ function setMode(nextMode) {
   const signedIn = Boolean(currentUser);
   $("#authTitle").textContent = signedIn ? "Your account" : mode === "signup" ? "Create account" : "Sign in";
   $("#authDescription").textContent = signedIn
-    ? `Signed in as ${currentUser.email || "your account"}. Cloud playlist syncing will be added next.`
+    ? `Signed in as ${currentUser.email || "your account"}. Your playlist data can sync through the cloud.`
     : mode === "signup" ? "Create an account for Kartik Music Player." : "Sign in to your Kartik Music account.";
   form.hidden = signedIn;
   $("#authForgot").hidden = signedIn || mode === "signup";
@@ -82,6 +86,77 @@ function friendlyError(error) {
   };
   return messages[error.code] || error.message || "Something went wrong. Please try again.";
 }
+
+// Cloud playlist sync stores playlist metadata and song references only.
+// Audio files, artwork blobs, and local playback remain on this device.
+function songReferences(playlist, tracks) {
+  return (playlist.songIds || []).map((id) => tracks.find((track) => track.id === id)).filter(Boolean).map((track) => ({
+    title: String(track.title || ""),
+    artist: String(track.artist || ""),
+    filename: String(track.file?.name || "")
+  }));
+}
+function matchLocalTrack(ref, tracks) {
+  if (ref.filename) {
+    const byFilename = tracks.find((track) => track.file?.name === ref.filename);
+    if (byFilename) return byFilename.id;
+  }
+  const normalized = (value) => String(value || "").trim().toLowerCase();
+  return tracks.find((track) => normalized(track.title) === normalized(ref.title) && normalized(track.artist) === normalized(ref.artist))?.id;
+}
+async function syncCloudPlaylists() {
+  if (!currentUser || !window.kartikMusicAppReady || !window.kartikMusicData) return;
+  const { getPlaylists, getTracks, putPlaylist, refreshPlaylists } = window.kartikMusicData;
+  const uid = currentUser.uid;
+  const localPlaylists = await getPlaylists();
+  const tracks = await getTracks();
+
+  // Upload local playlists that have not yet been linked to a cloud document.
+  for (const playlist of localPlaylists) {
+    const currentRefs = songReferences(playlist, tracks);
+    const knownRefs = Array.isArray(playlist.cloudSongRefs) ? playlist.cloudSongRefs : [];
+    const refKey = (ref) => `${String(ref.filename || "").toLowerCase()}|${String(ref.title || "").toLowerCase()}|${String(ref.artist || "").toLowerCase()}`;
+    const mergedRefs = new Map([...knownRefs, ...currentRefs].map((ref) => [refKey(ref), ref]));
+    const songRefs = [...mergedRefs.values()];
+    const payload = {
+      ownerId: uid,
+      name: String(playlist.name || "Untitled playlist").slice(0, 100),
+      songRefs,
+      updatedAt: serverTimestamp()
+    };
+    if (playlist.cloudId) {
+      await setDoc(doc(firestore, "playlists", playlist.cloudId), payload, { merge: true });
+    } else {
+      payload.createdAt = serverTimestamp();
+      const created = await addDoc(collection(firestore, "playlists"), payload);
+      playlist.cloudId = created.id;
+      playlist.cloudSongRefs = songRefs;
+      await putPlaylist(playlist);
+    }
+  }
+
+  // Download this user's cloud playlists and merge them into the local library.
+  const cloudQuery = query(collection(firestore, "playlists"), where("ownerId", "==", uid));
+  const snapshot = await getDocs(cloudQuery);
+  const refreshedLocal = await getPlaylists();
+  for (const item of snapshot.docs) {
+    const remote = item.data();
+    const refs = Array.isArray(remote.songRefs) ? remote.songRefs : [];
+    const songIds = refs.map((ref) => matchLocalTrack(ref, tracks)).filter((id) => id !== undefined);
+    const existing = refreshedLocal.find((playlist) => playlist.cloudId === item.id);
+    if (existing) {
+      existing.name = String(remote.name || existing.name || "Untitled playlist");
+      existing.songIds = songIds;
+      existing.cloudSongRefs = refs;
+      await putPlaylist(existing);
+    } else {
+      await putPlaylist({ name: String(remote.name || "Untitled playlist"), songIds, cloudId: item.id, cloudSongRefs: refs, created: Date.now() });
+    }
+  }
+  await refreshPlaylists();
+  window.dispatchEvent(new CustomEvent("kartik-cloud-sync-complete"));
+}
+window.kartikCloudPlaylistSync = syncCloudPlaylists;
 
 accountButton.addEventListener("click", openModal);
 $("#authClose").addEventListener("click", closeModal);
@@ -143,4 +218,5 @@ onAuthStateChanged(auth, (user) => {
   accountButton.textContent = user ? (user.email?.split("@")[0] || "Account") : "Sign in";
   accountButton.title = user ? `Signed in as ${user.email}` : "Sign in or create an account";
   if (modal.classList.contains("open")) setMode(mode);
+  window.dispatchEvent(new CustomEvent("kartik-auth-changed", { detail: { signedIn: Boolean(user) } }));
 });
