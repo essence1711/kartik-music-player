@@ -14,7 +14,7 @@ import {
 // Public web-app configuration from Firebase Project Settings > Your apps.
 // Do not put service-account credentials or private server keys in this file.
 const firebaseConfig = {
-  apiKey: "AIzaSyCUQafqXUZn4uH0nqKStgFDGLFsAdTHY5U",
+  apiKey: "AIzaSyCUQafqXUZn4uHohqKStgFDGlFsAdTHy5U",
   authDomain: "kartik-music-player.firebaseapp.com",
   projectId: "kartik-music-player",
   storageBucket: "kartik-music-player.firebasestorage.app",
